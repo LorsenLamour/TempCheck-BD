@@ -1,6 +1,29 @@
 import Temperature from '../Models/Temperature.model.js';
 import Alerte from '../Models/Alerte.model.js';
 import * as TemperatureService from '../Services/temperature.service.js';
+import nodemail from 'nodemailer';
+import User from '../Models/User.model.js';
+
+export const transporter = nodemail.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+export async function sendEmailUrgent(userEmail, temperature, message) {
+    try {
+        await transporter.sendMail({
+            from: `${process.env.EMAIL_USER}`,
+            to: userEmail,
+            subject: 'Alerte Temperature',
+            text: `Une alerte a été déclenchée pour la température : ${temperature}. Message : ${message}`
+        });
+    } catch (error) {
+        nsole.error('Erreur lors de lenvoi de lemail :', error);
+    }
+};
 
 export const getTemperatures = async (req, res) => {
     try {
@@ -73,6 +96,13 @@ export const addTemperatureAvecQuestions= async (req, res) => {
         if (defineStatut.statut !== 'Neutre') {
             const alerteData = TemperatureService.createAlerte(tempEntered, defineStatut);
             await Alerte.create(alerteData);
+        }
+
+        if (defineStatut.statut === 'Urgent') {
+            const userData = await User.findById(user);
+            if (userData) {
+                await sendEmailUrgent(userData.email, temperature, 'Votre température a déclenché une alerte urgente. Veuillez consulter votre application pour plus de détails.');
+            }
         }
 
         res.status(201).json({ success: true, temperature: tempEntered });
