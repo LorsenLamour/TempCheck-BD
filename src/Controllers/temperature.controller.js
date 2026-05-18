@@ -4,26 +4,32 @@ import * as TemperatureService from '../Services/temperature.service.js';
 import User from '../Models/User.model.js';
 import { Resend } from 'resend';
 
+const transporter = nodemailer.createTransport({
+    host: 'smtp-relay.brevo.com',
+    port: 587,
+    auth: {
+        user: process.env.BREVO_USER,
+        pass: process.env.BREVO_PASS
+    }
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+});
+
 
 async function sendEmail(userEmail, temperature, message){
     try {
-        const { data, error } = await resend.emails.send({
-            from: 'onboarding@resend.dev',
+        await transporter.sendMail({
+            from: process.env.BREVO_USER,
             to: userEmail,
-            subject: 'TempCheck -ALERTE URGENTE',
-            text: `Température urgente: ${temperature}°C\n\n${message}`
+            subject: 'TempCheck - ALERTE URGENTE',
+            text: `Température urgente: ${temperature}°C\n${message}`
         });
-        if (error) {
-            console.error("Erreur Resend:", error);
-        } else {
-            console.log(`Email envoyé à ${userEmail}`);
-        }
+        console.log(`Email envoyé à ${userEmail}`);
     } catch (error) {
-        console.error("Erreur d'envoi par email:", error.message);
+        console.error("Erreur email:", error.message);
     }
 }
+
+
 export const getTemperatures = async (req, res) => {
     try {
         const userId = req.user?.id;
