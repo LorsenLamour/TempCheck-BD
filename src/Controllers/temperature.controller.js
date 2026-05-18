@@ -12,16 +12,16 @@ export const transporter = nodemail.createTransport({
     }
 });
 
-export async function sendEmailUrgent(userEmail, temperature, message) {
+async function sendEmailUrgent(userEmail, temperature, message) {
     try {
         await transporter.sendMail({
-            from: `${process.env.EMAIL_USER}`,
+            from: process.env.EMAIL_USER,
             to: userEmail,
-            subject: 'Alerte Temperature',
+            subject: 'Alerte URGENTE Temperature',
             text: `Une alerte a été déclenchée pour la température : ${temperature}. Message : ${message}`
         });
     } catch (error) {
-        nsole.error('Erreur lors de lenvoi de lemail :', error);
+         console.error('Erreur lors de lenvoi de lemail :', error);
     }
 };
 
