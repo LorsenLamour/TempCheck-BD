@@ -1,30 +1,29 @@
 import Temperature from '../Models/Temperature.model.js';
 import Alerte from '../Models/Alerte.model.js';
 import * as TemperatureService from '../Services/temperature.service.js';
-import nodemail from 'nodemailer';
 import User from '../Models/User.model.js';
+import { Resend } from 'resend';
 
-export const transporter = nodemail.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
 
-async function sendEmailUrgent(userEmail, temperature, message) {
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+async function sendEmail(userEmail, temperature, message){
     try {
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
+        const { data, error } = await resend.emails.send({
+            from: 'onboarding@resend.dev',
             to: userEmail,
-            subject: 'Alerte URGENTE Temperature',
-            text: `Une alerte a été déclenchée pour la température : ${temperature}. Message : ${message}`
+            subject: 'TempCheck -ALERTE URGENTE',
+            text: `Température urgente: ${temperature}°C\n\n${message}`
         });
+        if (error) {
+            console.error("Erreur Resend:", error);
+        } else {
+            console.log(`Email envoyé à ${userEmail}`);
+        }
     } catch (error) {
-         console.error('Erreur lors de lenvoi de lemail :', error);
+        console.error("Erreur d'envoi par email:", error.message);
     }
-};
-
+}
 export const getTemperatures = async (req, res) => {
     try {
         const userId = req.user?.id;
@@ -97,13 +96,14 @@ export const addTemperatureAvecQuestions= async (req, res) => {
             const alerteData = TemperatureService.createAlerte(tempEntered, defineStatut);
             await Alerte.create(alerteData);
         }
-
         if (defineStatut.statut === 'Urgent') {
             const userData = await User.findById(user);
-            if (userData) {
-                await sendEmailUrgent(userData.email, temperature, 'Votre température a déclenché une alerte urgente. Veuillez consulter votre application pour plus de détails.');
+            if (userData?.email) {
+                sendEmail(userData.email, temperature, 'Alerte urgente détectée. Veuiller vous rendre immediatement dans la salle d<<urgence.');
             }
         }
+
+        
 
         res.status(201).json({ success: true, temperature: tempEntered });
     } catch (error) {
@@ -147,8 +147,3 @@ export const deleteTemperature = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-
-
-
-
-
