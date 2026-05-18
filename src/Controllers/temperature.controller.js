@@ -2,27 +2,28 @@ import Temperature from '../Models/Temperature.model.js';
 import Alerte from '../Models/Alerte.model.js';
 import * as TemperatureService from '../Services/temperature.service.js';
 import User from '../Models/User.model.js';
-import { Resend } from 'resend';
-
-const transporter = nodemailer.createTransport({
-    host: 'smtp-relay.brevo.com',
-    port: 587,
-    auth: {
-        user: process.env.BREVO_USER,
-        pass: process.env.BREVO_PASS
-    }
-
-});
+import axios from 'axios';
 
 
-async function sendEmail(userEmail, temperature, message){
+
+
+async function sendEmail(userEmail, temperature, message) {
     try {
-        await transporter.sendMail({
-            from: process.env.BREVO_USER,
-            to: userEmail,
-            subject: 'TempCheck - ALERTE URGENTE',
-            text: `Température urgente: ${temperature}°C\n${message}`
-        });
+        const response = await axios.post(
+            'https://api.brevo.com/v3/smtp/email',
+            {
+                sender: { email: process.env.BREVO_USER },
+                to: [{ email: userEmail }],
+                subject: 'TempCheck - ALERTE URGENTE',
+                textContent: `Température urgente: ${temperature}°C\n\n${message}`
+            },
+            {
+                headers: {
+                    'api-key': process.env.BREVO_API_KEY,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
         console.log(`Email envoyé à ${userEmail}`);
     } catch (error) {
         console.error("Erreur email:", error.message);
@@ -85,7 +86,7 @@ export const addTemperature = async (req, res) => {
     }
 };
 
-export const addTemperatureAvecQuestions= async (req, res) => {
+export const addTemperatureAvecQuestions = async (req, res) => {
     try {
         const { temperature, question1, question2, question3, user } = req.body;
         const defineStatut = TemperatureService.determineStatut(temperature, question1, question2, question3);
@@ -97,7 +98,7 @@ export const addTemperatureAvecQuestions= async (req, res) => {
         };
 
         const tempEntered = await Temperature.create(temp);
-        
+
         if (defineStatut.statut !== 'Neutre') {
             const alerteData = TemperatureService.createAlerte(tempEntered, defineStatut);
             await Alerte.create(alerteData);
@@ -109,7 +110,7 @@ export const addTemperatureAvecQuestions= async (req, res) => {
             }
         }
 
-        
+
 
         res.status(201).json({ success: true, temperature: tempEntered });
     } catch (error) {
@@ -121,7 +122,7 @@ export const addTemperatureAvecQuestions= async (req, res) => {
 export const updateTemperature = async (req, res) => {
     try {
         const { id } = req.params;
-        const {temperature, question1, question2, question3} = req.body;
+        const { temperature, question1, question2, question3 } = req.body;
         const temp = await Temperature.findByIdAndUpdate(id, req.body);
         res.status(200).json(temp);
 
